@@ -8,6 +8,8 @@ import argparse
 import os
 import sys
 
+from gi.repository import Gtk
+
 from bokeh.application import Application
 from bokeh.server.server import Server
 from bokeh.application.handlers import DirectoryHandler
@@ -21,6 +23,43 @@ from helper import set_log_id_is_filename, print_cache_info
 from config import debug_print_timing
 
 #pylint: disable=invalid-name
+
+class FileChooserWindow(Gtk.Window):
+
+    def __init__(self):
+        Gtk.Window.__init__(self, title="FileChooser Example")
+
+    def get_log_filename(self):
+        dialog = Gtk.FileChooserDialog("Please choose a file", self,
+            Gtk.FileChooserAction.OPEN,
+            (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+             Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
+
+        self.add_filters(dialog)
+
+        response = dialog.run()
+        if response == Gtk.ResponseType.OK:
+            print("Open clicked")
+            log_filename = dialog.get_filename()
+            print("File selected: " + log_filename)
+        elif response == Gtk.ResponseType.CANCEL:
+            log_filename = None
+
+        dialog.destroy()
+
+        if log_filename != None:
+            return log_filename
+
+    def add_filters(self, dialog):
+        filter_text = Gtk.FileFilter()
+        filter_text.set_name("Log files")
+        filter_text.add_pattern("*.ulg")
+        dialog.add_filter(filter_text)
+
+        filter_any = Gtk.FileFilter()
+        filter_any.set_name("Any files")
+        filter_any.add_pattern("*")
+        dialog.add_filter(filter_any)
 
 def _fixup_deprecated_host_args(arguments):
     # --host is deprecated since bokeh 0.12.5. You might want to use
@@ -84,6 +123,12 @@ server_kwargs['http_server_kwargs'] = {'max_buffer_size': 300 * 1024 * 1024}
 show_ulog_file = False
 if args.file != None:
     ulog_file = os.path.abspath(args.file)
+else:
+    win = FileChooserWindow()
+    ulog_file = win.get_log_filename()
+    win.connect("delete-event", Gtk.main_quit)
+
+if ulog_file != None:
     show_ulog_file = True
     args.show = True
 set_log_id_is_filename(show_ulog_file)
@@ -126,4 +171,3 @@ if callable(run_op):
     server.run_until_shutdown()
 else:
     server.start()
-
